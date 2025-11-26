@@ -1,0 +1,59 @@
+package com.errday.userservice.service;
+
+import com.errday.userservice.client.PointClient;
+import com.errday.userservice.domain.User;
+import com.errday.userservice.dto.AddActivityScoreRequestDto;
+import com.errday.userservice.dto.SignUpRequestDto;
+import com.errday.userservice.domain.UserRepository;
+import com.errday.userservice.dto.UserResponseDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final PointClient pointClient;
+
+    @Transactional
+    public void signUp(SignUpRequestDto signUpRequestDto) {
+        var user = new User(
+                signUpRequestDto.email(),
+                signUpRequestDto.name(),
+                signUpRequestDto.password()
+        );
+        User savedUser = userRepository.save(user);
+
+        int WELCOME_POINT = 1000;
+        pointClient.addPoints(savedUser.getUserId(), WELCOME_POINT);
+    }
+
+    public UserResponseDto getUser(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User with id " + id + " not found"));
+        return new UserResponseDto(user.getUserId(), user.getEmail(), user.getName());
+    }
+
+    public List<UserResponseDto> getUsersByIds(List<Long> ids) {
+        List<User> users = userRepository.findAllById(ids);
+
+        return users.stream()
+                .map(user -> new UserResponseDto(user.getUserId(), user.getEmail(), user.getName()))
+                .toList();
+    }
+
+    @Transactional
+    public void addActivityScore(AddActivityScoreRequestDto addActivityScoreRequestDto) {
+        User user = userRepository.findById(addActivityScoreRequestDto.userId())
+                .orElseThrow(() -> new IllegalArgumentException("User with id " + addActivityScoreRequestDto.userId() + " not found"));
+
+        user.addActivityScore(addActivityScoreRequestDto.score());
+
+        userRepository.save(user);
+    }
+
+}
