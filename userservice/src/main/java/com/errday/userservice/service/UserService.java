@@ -54,6 +54,12 @@ public class UserService {
         user.addActivityScore(addActivityScoreRequestDto.score());
 
         userRepository.save(user);
+
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+
+        }
     }
 
 }

@@ -27,14 +27,36 @@ public class BoardService {
     private final UserClient userClient;
     private final PointClient pointClient;
 
-    @Transactional
+    //@Transactional
     public void create(CreateBoardRequestDto createBoardRequestDto) {
-        pointClient.deductPoints(createBoardRequestDto.userId(), BOARD_SAVE_POINTS);
+        boolean isBoardCreated = false;
+        Long savedBoardId = null;
 
-        var board = new Board(createBoardRequestDto.title(), createBoardRequestDto.content(), createBoardRequestDto.userId());
-        boardRepository.save(board);
+        boolean isPoinDteducted = false;
 
-        userClient.addActivityScore(createBoardRequestDto.userId(), BOARD_ACTIVITY_POINTS);
+        try {
+            pointClient.deductPoints(createBoardRequestDto.userId(), BOARD_SAVE_POINTS);
+            isPoinDteducted = true;
+
+            var board = new Board(createBoardRequestDto.title(), createBoardRequestDto.content(), createBoardRequestDto.userId());
+            Board savedBoard = boardRepository.save(board);
+            savedBoardId = savedBoard.getBoardId();
+            isBoardCreated = true;
+
+            userClient.addActivityScore(createBoardRequestDto.userId(), BOARD_ACTIVITY_POINTS);
+        } catch (Exception e) {
+            if (isBoardCreated) {
+                boardRepository.deleteById(savedBoardId);
+            }
+
+            if (isPoinDteducted) {
+                pointClient.addPoints(createBoardRequestDto.userId(), BOARD_SAVE_POINTS);
+            }
+
+            throw e;
+        }
+
+
     }
 
     public BoardResponseDto getBoard(Long boardId) {
