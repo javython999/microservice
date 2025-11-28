@@ -4,13 +4,17 @@ import com.errday.boardservice.client.PointClient;
 import com.errday.boardservice.client.UserClient;
 import com.errday.boardservice.domain.Board;
 import com.errday.boardservice.domain.BoardRepository;
+import com.errday.boardservice.domain.User;
 import com.errday.boardservice.dto.BoardResponseDto;
 import com.errday.boardservice.dto.CreateBoardRequestDto;
 import com.errday.boardservice.dto.UserDto;
 import com.errday.boardservice.dto.UserResponseDto;
+import com.errday.boardservice.event.BoardCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.List;
@@ -22,10 +26,10 @@ import java.util.Optional;
 public class BoardService {
 
     private final int BOARD_SAVE_POINTS = 100;
-    private final int BOARD_ACTIVITY_POINTS = 10;
     private final BoardRepository boardRepository;
     private final UserClient userClient;
     private final PointClient pointClient;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     //@Transactional
     public void create(CreateBoardRequestDto createBoardRequestDto) {
@@ -43,7 +47,8 @@ public class BoardService {
             savedBoardId = savedBoard.getBoardId();
             isBoardCreated = true;
 
-            userClient.addActivityScore(createBoardRequestDto.userId(), BOARD_ACTIVITY_POINTS);
+            var boardCreatedEvent = new BoardCreatedEvent(createBoardRequestDto.userId());
+            kafkaTemplate.send("board.created",toJsonString(boardCreatedEvent));
         } catch (Exception e) {
             if (isBoardCreated) {
                 boardRepository.deleteById(savedBoardId);
@@ -62,36 +67,31 @@ public class BoardService {
     public BoardResponseDto getBoard(Long boardId) {
         Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
-        Optional<UserResponseDto> optionalUserResponseDto = userClient.fetchUser(boardId);
-
-        UserDto userDto = null;
-        if (optionalUserResponseDto.isPresent()) {
-            UserResponseDto userResponseDto = optionalUserResponseDto.get();
-            userDto = new UserDto(userResponseDto.userId(), userResponseDto.name());
-        }
-
-        return new BoardResponseDto(board.getTitle(), board.getContent(), userDto);
+        return new BoardResponseDto(
+                board.getTitle(),
+                board.getContent(),
+                new UserDto(board.getUserId(), board.getUserName())
+        );
     }
 
     public List<BoardResponseDto> getAllBoards() {
         List<Board> boards = boardRepository.findAll();
 
-        List<Long> userIds = boards.stream()
-                .map(Board::getUserId)
-                .distinct()
-                .toList();
-
-        List<UserResponseDto> userResponseDtos = userClient.fetchAllUsersByIds(userIds);
-
-        Map<Long, UserDto> userMap = new HashMap<>();
-        for (UserResponseDto userResponseDto : userResponseDtos) {
-            Long userId = userResponseDto.userId();
-            String name = userResponseDto.name();
-            userMap.put(userId, new UserDto(userResponseDto.userId(), name));
-        }
-
         return boards.stream()
-                .map(board -> new BoardResponseDto(board.getTitle(), board.getContent(), userMap.get(board.getUserId())))
+                .map(board -> new BoardResponseDto(
+                        board.getTitle(),
+                        board.getContent(),
+                        new UserDto(board.getUserId(), board.getUserName()))
+                )
                 .toList();
+    }
+
+    private String toJsonString(Object object) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (Exception e) {
+            throw new RuntimeException("Json 직렬화 실패");
+        }
     }
 }

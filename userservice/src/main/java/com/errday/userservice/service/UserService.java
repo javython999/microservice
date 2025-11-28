@@ -6,9 +6,12 @@ import com.errday.userservice.dto.AddActivityScoreRequestDto;
 import com.errday.userservice.dto.SignUpRequestDto;
 import com.errday.userservice.domain.UserRepository;
 import com.errday.userservice.dto.UserResponseDto;
+import com.errday.userservice.event.UserSignedUpEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -18,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PointClient pointClient;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Transactional
     public void signUp(SignUpRequestDto signUpRequestDto) {
@@ -30,6 +34,10 @@ public class UserService {
 
         int WELCOME_POINT = 1000;
         pointClient.addPoints(savedUser.getUserId(), WELCOME_POINT);
+
+        var userSignedUpEvent = new UserSignedUpEvent(savedUser.getUserId(), savedUser.getName());
+
+        kafkaTemplate.send("user.signed-up", toJsonString(userSignedUpEvent));
     }
 
     public UserResponseDto getUser(long id) {
@@ -59,6 +67,15 @@ public class UserService {
             Thread.sleep(10000);
         } catch (InterruptedException e) {
 
+        }
+    }
+
+    private String toJsonString(Object object) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (Exception e) {
+            throw new RuntimeException("Json 직렬화 실패");
         }
     }
 

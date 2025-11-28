@@ -10,7 +10,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
 
 client:
   user-service:
