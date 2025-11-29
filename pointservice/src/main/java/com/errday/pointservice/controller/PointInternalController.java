@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/points")
-public class PointController {
+@RequestMapping("/internal/points")
+public class PointInternalController {
 
     private final PointService pointService;
 

@@ -1,17 +1,16 @@
 package com.errday.userservice.controller;
 
-import com.errday.userservice.dto.AddActivityScoreRequestDto;
 import com.errday.userservice.dto.SignUpRequestDto;
-import com.errday.userservice.dto.UserResponseDto;
 import com.errday.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -24,20 +23,5 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserResponseDto> getUser(@PathVariable("userId") Long userId) {
-        return ResponseEntity.ok(userService.getUser(userId));
-    }
-
-    @GetMapping()
-    public ResponseEntity<List<UserResponseDto>> getUsersByIds(@RequestParam List<Long> ids) {
-        return ResponseEntity.ok(userService.getUsersByIds(ids));
-    }
-
-    @PostMapping("/activity-score/add")
-    public ResponseEntity<Void> addActivityScore(@RequestBody AddActivityScoreRequestDto addActivityScoreRequestDto) {
-        userService.addActivityScore(addActivityScoreRequestDto);
-        return ResponseEntity.noContent().build();
-    }
 
 }
